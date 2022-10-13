@@ -1,0 +1,21 @@
+{
+  "distance": 100,
+  "RA": 353.01332986,
+  "DEC": 1.85527209,
+  "N_stars": 100,
+  "HRV": -90,
+  "dHRV": 2,
+  "dHRV_err": 0.02,
+  "metal": -1.8,
+  "metal_err": 0.01,
+  "isochrone_path": "../isochrones/if_feh_-1.8_age_1.2e10.txt",
+  "lumfunc_path": "../isochrones/lf_feh_-1.8_age_1.2e10.txt",
+  "foreground_path": "../foregrounds/ra_353_dec_1.9_sa_20deg.txt",
+  "phase_space_path": 0,
+  "scale_radius": 0.5,
+  "plummer_radius": 25,
+  "dyn_mass": 4e7,
+  "slit_x": 16,
+  "slit_y": 4,
+  "slit_sample": 0
+}
