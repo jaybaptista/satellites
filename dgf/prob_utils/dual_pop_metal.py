@@ -7,14 +7,18 @@ from scipy.stats import norm
 from scipy.optimize import minimize
 
 
-class DualPopulation:
+class DualPopulationMetal:
     def __init__(self, p0, hrv, hrv_err, feh, feh_err):
-        # theta_0 keys
+        # theta
         # pgal
         # gal_hrv
         # gal_vsig
+        # gal_feh
+        # gal_fehsig
         # mw_hrv
         # mw_vsig
+        # mw_feh
+        # mw_fehsig
 
         self.p0 = p0
         self.hrv = hrv
@@ -24,8 +28,7 @@ class DualPopulation:
         self.feh_err = feh_err
 
     def lnprob(
-        self,
-        theta,
+        self, theta,
     ):
 
         (
@@ -46,7 +49,7 @@ class DualPopulation:
         gal_fehsig_min, gal_fehsig_max = [1e-3, 0.4]
         mw_hrv_min, mw_hrv_max = [-300, 300]
         mw_vsig_min, mw_vsig_max = [10, 500]
-        mw_feh_min, mw_feh_max = [-1, 1.5]
+        mw_feh_min, mw_feh_max = [-3, 3]
         mw_fehsig_min, mw_fehsig_max = [1e-3, 5]
 
         if (
@@ -74,20 +77,20 @@ class DualPopulation:
             return -np.inf
 
         lgal_hrv = norm.logpdf(
-            self.hrv, loc=gal_hrv, scale=np.sqrt(self.hrv_err**2 + gal_vsig**2)
+            self.hrv, loc=gal_hrv, scale=np.sqrt(self.hrv_err ** 2 + gal_vsig ** 2)
         )
         lmw_hrv = norm.logpdf(
-            self.hrv, loc=mw_hrv, scale=np.sqrt(self.hrv_err**2 + mw_vsig**2)
+            self.hrv, loc=mw_hrv, scale=np.sqrt(self.hrv_err ** 2 + mw_vsig ** 2)
         )
         lgal_feh = norm.logpdf(
-            self.feh, loc=gal_feh, scale=np.sqrt(self.feh_err**2 + gal_fehsig**2)
+            self.feh, loc=gal_feh, scale=np.sqrt(self.feh_err ** 2 + gal_fehsig ** 2)
         )
         lmw_feh = norm.logpdf(
-            self.feh, loc=mw_feh, scale=np.sqrt(self.feh_err**2 + mw_fehsig**2)
+            self.feh, loc=mw_feh, scale=np.sqrt(self.feh_err ** 2 + mw_fehsig ** 2)
         )
 
-        lgal = np.log(pgal) + lgal_hrv + lmw_feh
-        lmw = lmw_hrv + lgal_feh
+        lgal = np.log(pgal) + lgal_hrv + lgal_feh
+        lmw = lmw_hrv + lmw_feh
         ltot = np.logaddexp(lgal, np.log(1 - pgal) + lmw)
         val = np.sum(ltot)
 
@@ -143,6 +146,9 @@ class DualPopulation:
 
         ax[1].legend()
 
+        ax[0].set_xlim(rvmin, rvmax)
+        ax[1].set_xlim(fehmin, fehmax)
+
         plt.show()
 
     def optimizer(self, theta):
@@ -153,7 +159,9 @@ class DualPopulation:
         if theta is None:
             theta = self.p0
 
-        res = minimize(self.optimizer, theta, method="Nelder-Mead")
+        res = minimize(
+            self.optimizer, theta, method="Nelder-Mead", options={"maxiter": 5000}
+        )
         print(res.message)
         return res.x
 
@@ -180,15 +188,29 @@ class DualPopulation:
     def plot(self, labels=None):
         chain = self.sampler.flatchain
 
-        # theta_0 keys
+        # theta
         # pgal
         # gal_hrv
         # gal_vsig
+        # gal_feh
+        # gal_fehsig
         # mw_hrv
         # mw_vsig
+        # mw_feh
+        # mw_fehsig
 
         if labels == None:
-            labels = ["pgal", "gal_hrv", "gal_vsig", "mw_hrv", "mw_vsig"]
+            labels = [
+                "pgal",
+                "gal_hrv",
+                "gal_vsig",
+                "gal_feh",
+                "gal_fehsig",
+                "mw_hrv",
+                "mw_vsig",
+                "mw_feh",
+                "mw_fehsig",
+            ]
 
         fig = corner.corner(
             chain,
@@ -206,15 +228,24 @@ class DualPopulation:
 
         self.results = {
             "pgal": np.percentile(self.sampler.flatchain[:, 0], 50),
-            "hrv_gal": np.percentile(self.sampler.flatchain[:, 1], 50),
-            "vsig_gal": np.percentile(self.sampler.flatchain[:, 2], 50),
-            "hrv_mw": np.percentile(self.sampler.flatchain[:, 3], 50),
-            "vsig_mw": np.percentile(self.sampler.flatchain[:, 4], 50),
+            "gal_hrv": np.percentile(self.sampler.flatchain[:, 1], 50),
+            "gal_vsig": np.percentile(self.sampler.flatchain[:, 2], 50),
+            "gal_feh": np.percentile(self.sampler.flatchain[:, 3], 50),
+            "gal_fehvsig": np.percentile(self.sampler.flatchain[:, 4], 50),
+            "mw_hrv": np.percentile(self.sampler.flatchain[:, 5], 50),
+            "mw_vsig": np.percentile(self.sampler.flatchain[:, 6], 50),
+            "mw_feh": np.percentile(self.sampler.flatchain[:, 7], 50),
+            "mw_fehvsig": np.percentile(self.sampler.flatchain[:, 8], 50),
         }
 
         return self.results
 
-    def pdf(self, hrv):
+    def pdf_hrv(self, hrv):
         return norm.pdf(
-            hrv, loc=self.results["hrv_gal"], scale=self.results["vsig_gal"]
+            hrv, loc=self.results["gal_hrv"], scale=self.results["gal_vsig"]
+        )
+
+    def pdf_feh(self, feh):
+        return norm.pdf(
+            feh, loc=self.results["gal_feh"], scale=self.results["gal_fehsig"]
         )

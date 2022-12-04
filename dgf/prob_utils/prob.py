@@ -10,6 +10,7 @@ from scipy.stats import norm
 from IPython import embed
 
 from dgf import diameterToAngle
+from .dual_pop_metal import DualPopulationMetal
 from .gaussian import GaussianFit
 
 
@@ -37,6 +38,7 @@ class Probability:
 
         ## Galaxy parameters
         self.metal_0 = gal_prop["metal"]
+        self.metal_err_0 = gal_prop["metal_err"]
         self.hrv_0 = gal_prop["HRV"]
         self.dhrv_0 = gal_prop["dHRV"]
         self.ra_0 = gal_prop["RA"] * u.deg
@@ -46,6 +48,8 @@ class Probability:
 
         ## Load stars from observation
         self.obs = pd.read_hdf(obs_file)
+
+        self.prop = gal_prop
         # Index(['RA', 'DEC', 'HRV', 'dHRV', '[Fe/H]', 'r', 'g', 'color', 'member'], dtype='object')
 
     def cm(self, sigma=0.1, save_plot=False):
@@ -68,7 +72,7 @@ class Probability:
 
         dmin = np.array(dmin)
 
-        prob = np.exp(-1 * (dmin**2) / (2 * sigma**2))
+        prob = np.exp(-1 * (dmin ** 2) / (2 * sigma ** 2))
 
         if save_plot:
             fig, ax = plt.subplots(dpi=200)
@@ -91,7 +95,7 @@ class Probability:
             + ((self.obs["DEC"].to_numpy() * u.deg) - self.dec_0) ** 2
         )
 
-        prob = np.exp(-(r**2) / (2 * reff**2))
+        prob = np.exp(-(r ** 2) / (2 * reff ** 2))
 
         if save_plot:
             h = 10
@@ -136,13 +140,76 @@ class Probability:
 
         if save_plot:
             fitter.plot(
-                samples,
-                labels=["v", r"$\sigma_v$"],
-                save_to=f"{self.name}_vel.png",
+                samples, labels=["v", r"$\sigma_v$"], save_to=f"{self.name}_vel.png",
             )
 
         probs = norm.pdf(self.obs["HRV"].to_numpy(), loc=fit["HRV"], scale=fit["dHRV"])
 
+        return probs
+
+    def dispersion_adv_project(self, mw_theta, rv_lim=[-200, 500]):
+
+        theta = [
+            1 - mw_theta[0],
+            self.hrv_0,
+            self.dhrv_0,
+            self.metal_0,
+            self.metal_err_0,
+            mw_theta[1],
+            mw_theta[2],
+            mw_theta[3],
+            mw_theta[4],
+        ]
+
+        fitter = DualPopulationMetal(
+            theta,
+            self.obs["HRV"].to_numpy(),
+            self.obs["dHRV"].to_numpy(),
+            self.obs["[Fe/H]"].to_numpy(),
+            self.obs["d[Fe/H]"].to_numpy(),
+        )
+
+        popt = fitter.getOptimalValues(theta)
+
+        fitter.project_model(theta, rvmin=np.min(rv_lim), rvmax=np.max(rv_lim))
+
+    def dispersion_adv(self, mw_theta, nwalkers=20, niter=5000, save_plot=False):
+        # theta
+        # pgal
+        # gal_hrv
+        # gal_vsig
+        # gal_feh
+        # gal_fehsig
+        # mw_hrv
+        # mw_vsig
+        # mw_feh
+        # mw_fehsig
+
+        theta = [
+            1 - mw_theta[0],
+            self.hrv_0,
+            self.dhrv_0,
+            self.metal_0,
+            self.metal_err_0,
+            mw_theta[1],
+            mw_theta[2],
+            mw_theta[3],
+            mw_theta[4],
+        ]
+
+        fitter = DualPopulationMetal(
+            theta,
+            self.obs["HRV"].to_numpy(),
+            self.obs["dHRV"].to_numpy(),
+            self.obs["[Fe/H]"].to_numpy(),
+            self.obs["d[Fe/H]"].to_numpy(),
+        )
+        popt = fitter.getOptimalValues(theta)
+        _, _, _, sampler = fitter.run(nwalkers, popt, niters=niter, burnin=500)
+        res = fitter.get_results()
+        probs = norm.pdf(
+            self.obs["HRV"].to_numpy(), loc=res["gal_hrv"], scale=res["gal_vsig"]
+        )
         return probs
 
     def recovery_fn(self, cutoff=0.95, save_plot=False):

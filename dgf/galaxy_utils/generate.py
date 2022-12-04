@@ -63,6 +63,7 @@ def create_dwarf(
             "HRV": hrv + norm.rvs(0, dhrv, N),
             "dHRV": norm.rvs(dhrv, dhrv_scale, N),
             "[Fe/H]": norm.rvs(metal, metal_scale, N),
+            "d[Fe/H]": 0.1 * np.ones(N),
             "r": rmag,
             "g": gmag,
             "color": color,
@@ -92,7 +93,9 @@ def create_observation(
 
     mw_ra = fg_data["RAJ2000"]
     mw_dec = fg_data["DECJ2000"]
+
     mw_hrv = fg_data["HRV"]
+    mw_dhrv = fg_data["errHrv"]
 
     mw_c = fg_data["g-r"]
 
@@ -106,6 +109,7 @@ def create_observation(
         mw_r = mw_g - fg_data["g-r"]
 
     mw_feh = fg_data["[M/H]"]
+    mw_feh_err = fg_data["errMet"]
 
     N = len(mw_ra)
 
@@ -113,9 +117,10 @@ def create_observation(
         {
             "RA": mw_ra,
             "DEC": mw_dec,
-            "HRV": mw_hrv + norm.rvs(0, dhrv, N),
-            "dHRV": norm.rvs(dhrv, dhrv_scale, N),
+            "HRV": mw_hrv,
+            "dHRV": mw_dhrv,
             "[Fe/H]": mw_feh,
+            "d[Fe/H]": mw_feh_err,
             "r": mw_r,
             "g": mw_g,
             "color": mw_c,

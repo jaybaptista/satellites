@@ -10,7 +10,7 @@ from dune import GeneratePlummerNFW
 
 from IPython import embed
 
-gals = ["draco_c", "draco_b", "draco_a", "draco"]
+gals = ["kona_a", "kona_b", "kona_c", "kona", "draco_a", "draco_b", "draco_c", "draco"]
 
 for gal_name in gals:
     galaxy_config_path = f"./gals/{gal_name}.json"
